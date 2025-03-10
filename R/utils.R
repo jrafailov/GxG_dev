@@ -51,3 +51,48 @@ dedup = function(x, suffix = '.')
   out[unlist(udup.ix)] = paste(out[unlist(udup.ix)], unlist(udup.suffices), sep = '');
   return(out)
 }
+
+#' @name dedup2
+#' @title dedup2
+#' @author Kevin Hadi
+#' deanchor = function(jj, gm, flip = FALSE) {
+  if (flip)
+    bps = gr2dt(c(gr.flipstrand(jj$left), jj$right))[, .(sn = seqnames, st = start, en = end, str = strand, key = c('Left', 'Right'))]
+  else
+    bps = gr2dt(c(jj$left, jj$right))[, .(sn = seqnames, st = start, en = end, str = strand, key = c('Left', 'Right'))]
+  setkey(bps, key)
+  newgr = dt2gr(gr2dt(gm$gr)[, .(seqnames = bps[.(seqnames), sn],
+                                 start = ifelse(bps[.(seqnames), str] == '+',
+                                                start + bps[.(seqnames), st],
+                                                bps[.(seqnames), st]-end),
+                                 end = ifelse(bps[.(seqnames), str] == '+',
+                                              end + bps[.(seqnames), st],
+                                              bps[.(seqnames), st]-start))])
+  new.gm = gM(newgr, gm$dat)
+  return(new.gm)
+}
+
+#' @name conform_si
+#' @title conform_si
+#' @description
+#' Conform the seqinfo of x to si
+#' @param x GRanges object
+#' @param si Seqinfo object
+#' @return GRanges object with seqinfo conforming to si
+#' @author Kevin Hadi
+conform_si = function(x, si) {
+  ans = copy3(x)
+  osi = seqinfo(x)
+  osn = as.character(seqnames(x))
+  newslev = union(seqlevels(si), seqlevels(osi))
+  new = rn2col(as.data.frame(si[newslev]), "seqnames")
+  old = rn2col(as.data.frame(osi[newslev]), "seqnames")
+  newsi = merge.repl(
+    new, old, force_y = FALSE, overwrite_x = FALSE,
+    by = "seqnames", keep_order = T, all = T
+  )
+  newsi = as(col2rn(asdf(newsi), "seqnames"), "Seqinfo")
+  ans@seqnames = Rle(factor(osn, seqlevels(newsi)))
+  ans@seqinfo = newsi
+  return(ans)
+}
