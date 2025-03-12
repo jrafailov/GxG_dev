@@ -1,6 +1,3 @@
-#' @importFrom Rcpp sourceCpp
-#' @useDynLib GxG
-NULL
 
 ## ================== Custom instantiators and converters for gMatrix ================== ##
 
@@ -380,331 +377,321 @@ except ImportError:
 }
 
 
-## #' @name homeology.wrapper
-## #' @param junctions Path to .vcf or bedpe or rds file of junctions or gGraph from which alt edges will be taken
-## #' @param width width around junction breakpoint around which to search for homeology
-## #' @param pad number of bases of padding around each sequence position (bin) to use when computing homeology, i.e. we then will be comparing 1 + 2*pad -mer sequences for edit distance
-## #' @param thresh string distance threshold for calling homeology in a bin
-## #' @param stride distance in bases between consecutive bins in which we will be measuring homeology
-## #' @param genome Path to .2bit or ffTrack .rds containing genome sequence
-## #' @param cores How many cores to use
-## #' @param flip if flip = FALSE, homeology search for -/- and +/+ junctions is done between a sequence and its reverse complement
-## #' @param bidirectional adding padding on both sides of each breakpoint (TRUE) or only in the direction of the fused side (FALSE)
-## #' @param annotate annotate edges in gGraph object and save it in working directory
-## #' @param savegMatrix save gMatrix object of edit distances
-## #' @param outdir output directory 
-## #'
-## #' @import skitools
-## #' @import skidb
-## #' @import GxG
-## #' @import data.table
-## #' @import gGnome
-## #' @importFrom gUtils gr.nochr gr.string gr2dt~
-## #' @import GenomicRanges
-## #' @import khtools
-## #' @importFrom rtracklayer TwoBitFile
-## #' @import purrr
-## #' @import imager
-## #' @export 
-## homeology.wrapper <- function(junctions,
-##                       width = 50,
-##                       pad = 0,
-##                       thresh = 0,
-##                       stride = 0,
-##                       genome,
-##                       cores,
-##                       flip = FALSE,
-##                       bidirectional = TRUE,
-##                       annotate = TRUE,
-##                       savegMatrix = TRUE,
-##                       outdir = "./") {
+# ' @name homeology.wrapper
+# ' @param junctions Path to .vcf or bedpe or rds file of junctions or gGraph from which alt edges will be taken
+# ' @param width width around junction breakpoint around which to search for homeology
+# ' @param pad number of bases of padding around each sequence position (bin) to use when computing homeology, i.e. we then will be comparing 1 + 2*pad -mer sequences for edit distance
+# ' @param thresh string distance threshold for calling homeology in a bin
+# ' @param stride distance in bases between consecutive bins in which we will be measuring homeology
+# ' @param genome Path to .2bit or ffTrack .rds containing genome sequence
+# ' @param cores How many cores to use
+# ' @param flip if flip = FALSE, homeology search for -/- and +/+ junctions is done between a sequence and its reverse complement
+# ' @param bidirectional adding padding on both sides of each breakpoint (TRUE) or only in the direction of the fused side (FALSE)
+# ' @param annotate annotate edges in gGraph object and save it in working directory
+# ' @param savegMatrix save gMatrix object of edit distances
+# ' @param outdir output directory 
+# '
+# ' @export homeology.wrapper
+homeology.wrapper <- function(junctions,
+                      width = 50,
+                      pad = 0,
+                      thresh = 0,
+                      stride = 0,
+                      genome,
+                      cores,
+                      flip = FALSE,
+                      bidirectional = TRUE,
+                      annotate = TRUE,
+                      savegMatrix = TRUE,
+                      outdir = "./") {
 
-##   setDTthreads(1)
+  setDTthreads(1)
 
-##   system(paste('mkdir -p', outdir))
+  system(paste('mkdir -p', outdir))
 
-##   gg = tryCatch(gG(junctions = junctions), error = function(e) NULL)
+  gg = tryCatch(gG(junctions = junctions), error = function(e) NULL)
 
-##   if (is.null(gg))
-##     gg = tryCatch(readRDS(junctions), error = function(e) NULL)
+  if (is.null(gg))
+    gg = tryCatch(readRDS(junctions), error = function(e) NULL)
 
-##   if (!inherits(gg, "gGraph")) gg = gG(junctions = gg)
+  if (!inherits(gg, "gGraph")) gg = gG(junctions = gg)
 
-##   junctions = tryCatch(gg$edges[type == "ALT"]$junctions, error = function(e) NULL)
+  junctions = tryCatch(gg$edges[type == "ALT"]$junctions, error = function(e) NULL)
 
-##   if (is.null(junctions) || !inherits(junctions, "Junction"))
-##     stop('Error reading junctions - input should be either vcf, bedpe, .rds to Junction object, GRangesList, or gGraph')
+  if (is.null(junctions) || !inherits(junctions, "Junction"))
+    stop('Error reading junctions - input should be either vcf, bedpe, .rds to Junction object, GRangesList, or gGraph')
 
 
-##   standardchr = which(as.logical(as.character(seqnames(junctions$left)) %in% GenomeInfoDb::standardChromosomes(junctions$left) &
-##                                    as.character(seqnames(junctions$right)) %in% GenomeInfoDb::standardChromosomes(junctions$right)))
+  standardchr = which(as.logical(as.character(seqnames(junctions$left)) %in% GenomeInfoDb::standardChromosomes(junctions$left) &
+                                   as.character(seqnames(junctions$right)) %in% GenomeInfoDb::standardChromosomes(junctions$right)))
 
 
-##   message("junctions with either breakends mapped outside of standard chromosomes will be thrown out")
-##   message("TRUE = junctions with breakends mapped to standard chromosomes")
-##   print(NROW(standardchr))
+  message("junctions with either breakends mapped outside of standard chromosomes will be thrown out")
+  message("TRUE = junctions with breakends mapped to standard chromosomes")
+  print(NROW(standardchr))
 
-##   junctions = junctions[standardchr]
+  junctions = junctions[standardchr]
 
-##   si = seqinfo(TwoBitFile(genome))
+  si = seqinfo(TwoBitFile(genome))
 
-##   ll = gr.nochr(junctions$left)
-##   rr = gr.nochr(junctions$right)
+  ll = gr.nochr(junctions$left)
+  rr = gr.nochr(junctions$right)
 
-##   outofbounds = union(
-##     GenomicRanges:::get_out_of_bound_index(conform_si(ll, si) + (ceiling(width) / 2)),
-##     GenomicRanges:::get_out_of_bound_index(conform_si(rr, si) + (ceiling(width) / 2))
-##   )
+  outofbounds = union(
+    GenomicRanges:::get_out_of_bound_index(conform_si(ll, si) + (ceiling(width) / 2)),
+    GenomicRanges:::get_out_of_bound_index(conform_si(rr, si) + (ceiling(width) / 2))
+  )
 
-##   if (NROW(outofbounds) > 0) {
-##     message(NROW(outofbounds), " out of bound junctions found")
-##     junctions = junctions[-outofbounds]
-##   }
+  if (NROW(outofbounds) > 0) {
+    message(NROW(outofbounds), " out of bound junctions found")
+    junctions = junctions[-outofbounds]
+  }
 
-##   events = data.table(bp1 = gr.string(gr.nochr(junctions$left)),
-##                       bp2 = gr.string(gr.nochr(junctions$right)))
+  events = data.table(bp1 = gr.string(gr.nochr(junctions$left)),
+                      bp2 = gr.string(gr.nochr(junctions$right)))
 
-##   print(events)
+  print(events)
 
-##   browser()
+  #browser()
 
-##   cmd=sprintf("homeology.event(events, pad = ceiling(%s/2), thresh = %s, stride = %s, pad2 = %s, genome = '%s', mc.cores = %s, bidirected_search = %s, flip = %s, save_gm = %s)", width, thresh, stride, pad, genome, cores, bidirectional, flip, savegMatrix)
+  cmd=sprintf("homeology.event(events, pad = ceiling(%s/2), thresh = %s, stride = %s, pad2 = %s, genome = '%s', mc.cores = %s, bidirected_search = %s, flip = %s, save_gm = %s)", width, thresh, stride, pad, genome, cores, bidirectional, flip, savegMatrix)
 
-##   if (!file.exists(paste0(outdir, "/res.rds"))) {
-##     message("running ", cmd)
-##     res = et(cmd)
-##     message("finished querying for homeology, saving as intermediate")
-##     saveRDS(res, paste0(outdir, "/res.rds"), compress = FALSE)
-##   } else {
-##     message("results already exist...")
-##     message("reading in to perform post-processing")
-##     res = readRDS(paste0(outdir, "/res.rds"))
-##   }
+  if (!file.exists(paste0(outdir, "/res.rds"))) {
+    message("running ", cmd)
+    res = et(cmd)
+    message("finished querying for homeology, saving as intermediate")
+    saveRDS(res, paste0(outdir, "/res.rds"), compress = FALSE)
+  } else {
+    message("results already exist...")
+    message("reading in to perform post-processing")
+    res = readRDS(paste0(outdir, "/res.rds"))
+  }
 
 
-##   message("Post-processing")
-##   stat = res[[3]]
+  message("Post-processing")
+  stat = res[[3]]
 
-##   print(stat)
-##   stat = as.data.table(cbind(stat, junctions$dt)) %>% dedup.cols
+  print(stat)
+  stat = as.data.table(cbind(stat, junctions$dt)) %>% dedup.cols
 
-##   keep = which(sapply(stat, class) %in% c('character', 'integer', 'numeric', 'factor', 'logical'))
-##   stat = stat[, keep, with = FALSE]
+  keep = which(sapply(stat, class) %in% c('character', 'integer', 'numeric', 'factor', 'logical'))
+  stat = stat[, keep, with = FALSE]
 
-##   if (annotate) {
-##     message("annotating gGraph edges with homeology features")
-##     added_cols = c("numfeat", "numfeat2", "numfeat5",
-##                    "maxfeat", "numfeat10", "numlines5",
-##                    "maxlines5", "numlines", "maxlines",
-##                    "maxcor", "numglines", "numglines_pm5",
-##                    "numglines_p10", "numglines_p20", "hlen")
-##     if (NROW(stat)) {
-##       ## ed.annotate = dplyr::select(khtools::dedup.cols(stat, remove = T), edge.id, matches("numglines"))
-##       ed.annotate = dplyr::select(khtools::dedup.cols(stat, remove = T), edge.id, one_of(added_cols))
-##       ## cols = grep("numglines", colnames(ed.annotate), value = T)
-##       cols = colnames(ed.annotate)[colnames(ed.annotate) %in% added_cols]
-##       for (col in cols)
-##         et(sprintf("gg$edges[as.character(ed.annotate$edge.id)]$mark(%s = ed.annotate$%s)", col, col))
-##     }
-##     message("saving annotated gGraph")
-##     saveRDS(gg, paste0(outdir, "/marked_gGraph.rds"))
-##   }
+  if (annotate) {
+    message("annotating gGraph edges with homeology features")
+    added_cols = c("numfeat", "numfeat2", "numfeat5",
+                   "maxfeat", "numfeat10", "numlines5",
+                   "maxlines5", "numlines", "maxlines",
+                   "maxcor", "numglines", "numglines_pm5",
+                   "numglines_p10", "numglines_p20", "hlen")
+    if (NROW(stat)) {
+      ed.annotate = dplyr::select(khtools::dedup.cols(stat, remove = T), edge.id, matches("numglines"))
+      ed.annotate = dplyr::select(khtools::dedup.cols(stat, remove = T), edge.id, one_of(added_cols))
+      cols = grep("numglines", colnames(ed.annotate), value = T)
+      cols = colnames(ed.annotate)[colnames(ed.annotate) %in% added_cols]
+      for (col in cols)
+        et(sprintf("gg$edges[as.character(ed.annotate$edge.id)]$mark(%s = ed.annotate$%s)", col, col))
+    }
+    message("saving annotated gGraph")
+    saveRDS(gg, paste0(outdir, "/marked_gGraph.rds"))
+  }
 
-##   message("Saving junction-level stats")
-##   fwrite(stat, paste(outdir, 'junctions.txt', sep = '/'), sep = '\t')
-##   saveRDS(stat, paste(outdir, 'junctions.rds', sep = '/'))
+  message("Saving junction-level stats")
+  fwrite(stat, paste(outdir, 'junctions.txt', sep = '/'), sep = '\t')
+  saveRDS(stat, paste(outdir, 'junctions.rds', sep = '/'))
 
-##   rawstat = res[[2]]
+  rawstat = res[[2]]
 
-##   if (!inherits(rawstat, "data.table")) setDT(rawstat)
+  if (!inherits(rawstat, "data.table")) setDT(rawstat)
 
-##   if (NROW(rawstat)) {
-##     rawstat = rawstat[
-##       , which(sapply(rawstat, class) %in%
-##                 c('character', 'integer', 'numeric', 'factor', 'logical')),with = FALSE]
-##     if (is.null(rawstat$k)) rawstat$k = NA_integer_
-##     rawstat[, featuid := rleseq(seq, k, na.ignore = T, clump = T)$idx]
-##     if (is.null(rawstat$featuid)) rawstat$featuid = NA_integer_
-##     rawstat = merge(rawstat, stat[, .(seq, edge.id)], by = "seq")
-##   }
+  if (NROW(rawstat)) {
+    rawstat = rawstat[
+      , which(sapply(rawstat, class) %in%
+                c('character', 'integer', 'numeric', 'factor', 'logical')),with = FALSE]
+    if (is.null(rawstat$k)) rawstat$k = NA_integer_
+    rawstat[, featuid := rleseq(seq, k, na.ignore = T, clump = T)$idx]
+    if (is.null(rawstat$featuid)) rawstat$featuid = NA_integer_
+    rawstat = merge(rawstat, stat[, .(seq, edge.id)], by = "seq")
+  }
 
-##   message("Saving junction feature-level stats")
-##   fwrite(rawstat, paste(outdir, 'rawstats.txt', sep = "/"), sep = '\t')
+  message("Saving junction feature-level stats")
+  fwrite(rawstat, paste(outdir, 'rawstats.txt', sep = "/"), sep = '\t')
 
-##   saveRDS(rawstat, paste(outdir, 'rawstats.rds', sep = '/'))
+  saveRDS(rawstat, paste(outdir, 'rawstats.rds', sep = '/'))
 
-##   if (savegMatrix) {
-##     message("Saving gMatrix")
-##     saveRDS(res[[1]], paste(outdir, 'gMatrix.rds', sep = '/'))
-##   }
+  if (savegMatrix) {
+    message("Saving gMatrix")
+    saveRDS(res[[1]], paste(outdir, 'gMatrix.rds', sep = '/'))
+  }
 
-##   return(list(gMList = res[[1]], rawstat = rawstat))
-## }
+  return(list(gMList = res[[1]], rawstat = rawstat))
+}
 
-## #' @name homeology.event
-## #' @title homeology.event
-## #'
-## #' @param event data.table of junctions 
-## #' @param pad width around junction breakpoint around which to search for homeology
-## #' @param thresh string distance threshold for calling homeology in a bin
-## #' @param stride distance in bases between consecutive bins in which we will be measuring homeology
-## #' @param pad2 number of bases of padding around each sequence position (bin) to use when computing homeology
-## #' @param flip if flip = FALSE, homeology search for -/- and +/+ junctions is done between a sequence and its reverse complement
-## #' @param mc.cores number of cores to use
-## #' @param anchor if TRUE, anchor the junctions to the genome 
-## #' @param deanchor_gm if TRUE, deanchor the gMatrix
-## #' @param mat if TRUE, return the gMatrix as a matrix
-## #' @param genome path to .2bit or ffTrack .rds containing genome sequence
-## #' @param bidirected_search if TRUE, add padding on both sides of each breakpoint, if FALSE, add padding only in the direction of the fused side
-## #' @param save_gm if TRUE, save the gMatrix
-## #'
-## #' @return
-## #' @export
-## #'
-## #' @examples
-## homeology.event = function (event, 
-##                 pad = 100, 
-##                 thresh = 2, 
-##                 stride = 1, 
-##                 pad2 = 5,
-##                 flip = FALSE, 
-##                 mc.cores = 1, 
-##                 anchor = TRUE, 
-##                 deanchor_gm = TRUE,
-##                 mat = FALSE,
-##                 genome = "/gpfs/commons/home/khadi/DB/GATK/human_g1k_v37.fasta.2bit",
-##                 bidirected_search = TRUE,
-##                 save_gm = TRUE)
-## {
-##   if (!NROW(event)) {
-##     return(list(gm = list(), rawres = data.table(), res = data.table()))
-##   }
-##   event = copy2(event)
-##   ## event = data.table(bp1 = gr.string(event$left), bp2 = gr.string(event$right))
+#' @name homeology.event
+#' @title homeology.event
+#'
+#' @param event data.table of junctions 
+#' @param pad width around junction breakpoint around which to search for homeology
+#' @param thresh string distance threshold for calling homeology in a bin
+#' @param stride distance in bases between consecutive bins in which we will be measuring homeology
+#' @param pad2 number of bases of padding around each sequence position (bin) to use when computing homeology
+#' @param flip if flip = FALSE, homeology search for -/- and +/+ junctions is done between a sequence and its reverse complement
+#' @param mc.cores number of cores to use
+#' @param anchor if TRUE, anchor the junctions to the genome 
+#' @param deanchor_gm if TRUE, deanchor the gMatrix
+#' @param mat if TRUE, return the gMatrix as a matrix
+#' @param genome path to .2bit or ffTrack .rds containing genome sequence
+#' @param bidirected_search if TRUE, add padding on both sides of each breakpoint, if FALSE, add padding only in the direction of the fused side
+#' @param save_gm if TRUE, save the gMatrix
+#'
+#' @return
+#' @export homeology.event
+#'
+#' @examples
+homeology.event = function (event, 
+                pad = 100, 
+                thresh = 2, 
+                stride = 1, 
+                pad2 = 5,
+                flip = FALSE, 
+                mc.cores = 1, 
+                anchor = TRUE, 
+                deanchor_gm = TRUE,
+                mat = FALSE,
+                genome = "/gpfs/commons/home/khadi/DB/GATK/human_g1k_v37.fasta.2bit",
+                bidirected_search = TRUE,
+                save_gm = TRUE)
+{
+  if (!NROW(event)) {
+    return(list(gm = list(), rawres = data.table(), res = data.table()))
+  }
+  event = copy2(event)
+  ## event = data.table(bp1 = gr.string(event$left), bp2 = gr.string(event$right))
   
-##   gmfeat = function(gm, thresh = 3, op = "<=") {
-##     if (is(gm, "gMatrix")) {
-##       mat = gm$mat
-##       mat = (mat + t(mat))/2
-##     }
-##     else mat = gm
-##     ## dehom = deanchor(jJ(GRangesList(c(dg(evbp1)[dg(i)], dg(evbp2)[dg(i)]))),  dg(hom))
-##     ## demat = dehom$mat[dg(ix1), dg(ix2)]
-##     im = imager::as.cimg(as.matrix(mat))
-##     cmd = sprintf("im %s %s", op, thresh)
-##     px = eval(parse(text = cmd))
-##     if (sum(px) == 0)
-##       return(data.table())
-##     sp = imager::split_connected(px)
-##     if (NROW(sp) == 0)
-##       return(data.table())
-##     relmat = (1 - (mat / max(mat, na.rm = T)))
+  gmfeat = function(gm, thresh = 3, op = "<=") {
+    if (is(gm, "gMatrix")) {
+      mat = gm$mat
+      mat = (mat + t(mat))/2
+    }
+    else mat = gm
+    ## dehom = deanchor(jJ(GRangesList(c(dg(evbp1)[dg(i)], dg(evbp2)[dg(i)]))),  dg(hom))
+    ## demat = dehom$mat[dg(ix1), dg(ix2)]
+    im = imager::as.cimg(as.matrix(mat))
+    cmd = sprintf("im %s %s", op, thresh)
+    px = eval(parse(text = cmd))
+    if (sum(px) == 0)
+      return(data.table())
+    sp = imager::split_connected(px)
+    if (NROW(sp) == 0)
+      return(data.table())
+    relmat = (1 - (mat / max(mat, na.rm = T)))
 
-##     res = rbindlist(lapply(
-##       1:length(sp),
-##       function(k) as.data.table(which(as.matrix(sp[[k]]),
-##                                       arr.ind = TRUE))[
-##                                         ,.(k = k, i = pmin(row, col),
-##                                            j = pmax(row, col), levd = mat[cbind(row, col)],
-##                                            relsim = relmat[cbind(row, col)],
-##                                            iw = rownames(mat)[row],
-##                                            jw = colnames(mat)[col])]), fill = TRUE)
-##     if (NROW(res) > 0) {
-##       griw = gr2dt(with(parse.gr2(res$iw, meta = res), {
-##         SHIFT = abs(min(pmin(start, end))) + 1;
-##         GenomicRanges::shift(dynGet("data"), SHIFT) %>% gr.spreduce(k)
-##       }))[, .(iwid = sum(width)), by = .(k = as.integer(k))]
-##       grjw = gr2dt(with(parse.gr2(res$jw, meta = res), {
-##         SHIFT = abs(min(pmin(start, end))) + 1;
-##         GenomicRanges::shift(dynGet("data"), SHIFT) %>% gr.spreduce(k)
-##       }))[, .(jwid = sum(width)), by = .(k = as.integer(k))]
-##       res = merge.data.table(merge.data.table(res, griw, by = 'k', all.x = TRUE),
-##                              grjw, by = "k", all.x = TRUE)[, minpx := pmin(iwid, jwid)]
-##       res[, `:=`(N = .N, r = cor(i, j)), by = k]
-##     }
-##     return(res)
-##   }
+    res = rbindlist(lapply(
+      1:length(sp),
+      function(k) as.data.table(which(as.matrix(sp[[k]]),
+                                      arr.ind = TRUE))[
+                                        ,.(k = k, i = pmin(row, col),
+                                           j = pmax(row, col), levd = mat[cbind(row, col)],
+                                           relsim = relmat[cbind(row, col)],
+                                           iw = rownames(mat)[row],
+                                           jw = colnames(mat)[col])]), fill = TRUE)
+    if (NROW(res) > 0) {
+      griw = gr2dt(with(parse.gr2(res$iw, meta = res), {
+        SHIFT = abs(min(pmin(start, end))) + 1;
+        GenomicRanges::shift(dynGet("data"), SHIFT) %>% gr.spreduce(k)
+      }))[, .(iwid = sum(width)), by = .(k = as.integer(k))]
+      grjw = gr2dt(with(parse.gr2(res$jw, meta = res), {
+        SHIFT = abs(min(pmin(start, end))) + 1;
+        GenomicRanges::shift(dynGet("data"), SHIFT) %>% gr.spreduce(k)
+      }))[, .(jwid = sum(width)), by = .(k = as.integer(k))]
+      res = merge.data.table(merge.data.table(res, griw, by = 'k', all.x = TRUE),
+                             grjw, by = "k", all.x = TRUE)[, minpx := pmin(iwid, jwid)]
+      res[, `:=`(N = .N, r = cor(i, j)), by = k]
+    }
+    return(res)
+  }
   
-##   #stats function for gmatrix
-##   gmstats = function(res) {
-##     if (NROW(res) > 0) {
-##       res[!duplicated(k)][
-##         ,.(numfeat = sum(N > 0), numfeat2 = sum(N > 2), numfeat5 = sum(N > 5),
-##            numfeat10 = sum(N > 10), maxfeat = max(N),
-##            numlines5 = sum(r > 0.5, na.rm = TRUE),
-##            maxlines5 = max(c(0, N[r > 0.5]), na.rm = TRUE),
-##            numlines = sum(r > 0.9, na.rm = TRUE),
-##            maxlines = max(c(0, N[r > 0.9]), na.rm = TRUE),
-##            maxcor = max(r, na.rm = TRUE),
-##            numglines = sum(na2false(r > 0.9) &
-##                              na2false(N >= 24) &
-##                              na2false(floor(N / minpx) <= 4)),
-##            numglines_pm5 = sum(na2false(r > 0.9) & na2false(minpx >= 8)),
-##            numglines_p10 = sum(na2false(r > 0.9) & na2false(minpx >= 15)),
-##            numglines_p20 = sum(na2false(r > 0.9) & na2false(minpx >= 25)),
-##            hlen = max(ifelse(na2false(r > 0.9), minpx, 0L)))]
-##     }
-##     else data.table(numfeat = 0, maxfeat = 0)
-##   }
+  #stats function for gmatrix
+  gmstats = function(res) {
+    if (NROW(res) > 0) {
+      res[!duplicated(k)][
+        ,.(numfeat = sum(N > 0), numfeat2 = sum(N > 2), numfeat5 = sum(N > 5),
+           numfeat10 = sum(N > 10), maxfeat = max(N),
+           numlines5 = sum(r > 0.5, na.rm = TRUE),
+           maxlines5 = max(c(0, N[r > 0.5]), na.rm = TRUE),
+           numlines = sum(r > 0.9, na.rm = TRUE),
+           maxlines = max(c(0, N[r > 0.9]), na.rm = TRUE),
+           maxcor = max(r, na.rm = TRUE),
+           numglines = sum(na2false(r > 0.9) &
+                             na2false(N >= 24) &
+                             na2false(floor(N / minpx) <= 4)),
+           numglines_pm5 = sum(na2false(r > 0.9) & na2false(minpx >= 8)),
+           numglines_p10 = sum(na2false(r > 0.9) & na2false(minpx >= 15)),
+           numglines_p20 = sum(na2false(r > 0.9) & na2false(minpx >= 25)),
+           hlen = max(ifelse(na2false(r > 0.9), minpx, 0L)))]
+    }
+    else data.table(numfeat = 0, maxfeat = 0)
+  }
   
-##   evbp1 = gr.end(gr.flipstrand(parse.gr(event$bp1)))
-##   if (flip)
-##     evbp2 = gr.flipstrand(gr.end(parse.gr(event$bp2)))
-##   else evbp2 = gr.end(parse.gr(event$bp2))
+  evbp1 = gr.end(gr.flipstrand(parse.gr(event$bp1)))
+  if (flip)
+    evbp2 = gr.flipstrand(gr.end(parse.gr(event$bp2)))
+  else evbp2 = gr.end(parse.gr(event$bp2))
 
 
-##   if (isTRUE(bidirected_search)) {
-##     win = c(GRanges("Left:0") + pad, GRanges("Right:0") + pad)
-##     query.bp1 = evbp1 + pad
-##     query.bp2 = evbp2 + pad
-##   } else {
-##     win = c(gr.resize(GRanges("Left:0"), fix = "end", pad * 2, pad = F),
-##             gr.resize(GRanges("Right:0"), fix = "start", pad * 2, pad = F))
-##     query.bp1 = gr.resize(evbp1, pad * 2, pad = FALSE, fix = "end") # fix at end because was flipped
-##     bp2dir = if (flip) "end" else "start"
-##     query.bp2 = gr.resize(evbp2, pad * 2, pad = FALSE, fix = bp2dir)
-##   } # querying by both sides of junction, or just looking in the direction of the fused side of junction
+  if (isTRUE(bidirected_search)) {
+    win = c(GRanges("Left:0") + pad, GRanges("Right:0") + pad)
+    query.bp1 = evbp1 + pad
+    query.bp2 = evbp2 + pad
+  } else {
+    win = c(gr.resize(GRanges("Left:0"), fix = "end", pad * 2, pad = F),
+            gr.resize(GRanges("Right:0"), fix = "start", pad * 2, pad = F))
+    query.bp1 = gr.resize(evbp1, pad * 2, pad = FALSE, fix = "end") # fix at end because was flipped
+    bp2dir = if (flip) "end" else "start"
+    query.bp2 = gr.resize(evbp2, pad * 2, pad = FALSE, fix = bp2dir)
+  } # querying by both sides of junction, or just looking in the direction of the fused side of junction
   
-##   event$query.bp1 = gr.string(query.bp1)
-##   event$query.bp2 = gr.string(query.bp2)
+  event$query.bp1 = gr.string(query.bp1)
+  event$query.bp2 = gr.string(query.bp2)
   
-##   seq1 = ffTrack::get_seq(genome,
-##                           query.bp1)
-##   seq2 = ffTrack::get_seq(genome,
-##                           query.bp2)
+  seq1 = ffTrack::get_seq(genome,
+                          query.bp1)
+  seq2 = ffTrack::get_seq(genome,
+                          query.bp2)
 
-##   #browser()
+  #browser()
 
-##   ifun = function(i) {
-##     tryCatch({
-##       message(i)
-##       this.env = environment()
-##       if (!anchor)
-##         win = c(evbp1[i], evbp2[i]) + pad
-##       win$seq = c(seq1[i], seq2[i])
-##       hom = homeology(win, stride = stride, pad = pad2)
-##       ix1 = which(hom$gr %^% win[1])
-##       ix2 = which(hom$gr %^% win[2])
-##       gm = gmfeat(hom$mat[ix1, ix2], thresh = thresh)
-##       gms = gmstats(gm)
-##       gm[, seq := this.env$i]
-##       gms[, seq := this.env$i]
-##       if (anchor && deanchor_gm)
-##         hom = deanchor(jJ(GRangesList(grbind(evbp1[i], evbp2[i]))), hom)
-##       return(list(hom = hom, gm = gm, gms = gms))
-##     }, error = function(e) printerr(i))
-##   }
+  ifun = function(i) {
+    tryCatch({
+      message(i)
+      this.env = environment()
+      if (!anchor)
+        win = c(evbp1[i], evbp2[i]) + pad
+      win$seq = c(seq1[i], seq2[i])
+      hom = homeology(win, stride = stride, pad = pad2)
+      ix1 = which(hom$gr %^% win[1])
+      ix2 = which(hom$gr %^% win[2])
+      gm = gmfeat(hom$mat[ix1, ix2], thresh = thresh)
+      gms = gmstats(gm)
+      gm[, seq := this.env$i]
+      gms[, seq := this.env$i]
+      if (anchor && deanchor_gm)
+        hom = deanchor(jJ(GRangesList(grbind(evbp1[i], evbp2[i]))), hom)
+      return(list(hom = hom, gm = gm, gms = gms))
+    }, error = function(e) printerr(i))
+  }
 
-##   browser()
-##   ifun(i)
-##   lst = mclapply(1:length(seq1), ifun, mc.cores = mc.cores)
-##   lst = purrr::transpose(lst)
+  #browser()
+  #ifun(i)
+  lst = mclapply(1:length(seq1), ifun, mc.cores = mc.cores)
+  browser()
+  lst = purrr::transpose(lst)
 
-##   rawres = merge.data.table(event[, seq := seq_len(.N)], as.data.table(rbindlist(lst[[2]], fill = T)), by = "seq", all.x = TRUE)
-##   res = cbind(event, rbindlist(lst[[3]], fill = TRUE))
+  rawres = merge.data.table(event[, seq := seq_len(.N)], as.data.table(rbindlist(lst[[2]], fill = T)), by = "seq", all.x = TRUE)
+  res = cbind(event, rbindlist(lst[[3]], fill = TRUE))
 
-##   if (save_gm)
-##     return(list(gm = lst[[1]], rawres = rawres, res = res))
-##   else
-##     return(list(gm = NULL, rawres = rawres, res = res))
-## }
+  if (save_gm)
+    return(list(gm = lst[[1]], rawres = rawres, res = res))
+  else
+    return(list(gm = NULL, rawres = rawres, res = res))
+}

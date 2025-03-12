@@ -20,18 +20,6 @@
 #'
 #'    Github: https://github.com/mskilab/GxG
 #'
-#' @import methods
-#' @import R6
-#' @import data.table
-#' @import Matrix
-#' @import GenomicRanges
-#' @import igraph
-#' @importFrom reshape2 melt
-#' @import gUtils
-#' @import gTrack
-#' @import strawr
-"_PACKAGE"
-
 
 ## ================== gMatrix class definition ================== ##
 #' @export
