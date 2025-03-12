@@ -377,21 +377,22 @@ except ImportError:
 }
 
 
-# ' @name homeology.wrapper
-# ' @param junctions Path to .vcf or bedpe or rds file of junctions or gGraph from which alt edges will be taken
-# ' @param width width around junction breakpoint around which to search for homeology
-# ' @param pad number of bases of padding around each sequence position (bin) to use when computing homeology, i.e. we then will be comparing 1 + 2*pad -mer sequences for edit distance
-# ' @param thresh string distance threshold for calling homeology in a bin
-# ' @param stride distance in bases between consecutive bins in which we will be measuring homeology
-# ' @param genome Path to .2bit or ffTrack .rds containing genome sequence
-# ' @param cores How many cores to use
-# ' @param flip if flip = FALSE, homeology search for -/- and +/+ junctions is done between a sequence and its reverse complement
-# ' @param bidirectional adding padding on both sides of each breakpoint (TRUE) or only in the direction of the fused side (FALSE)
-# ' @param annotate annotate edges in gGraph object and save it in working directory
-# ' @param savegMatrix save gMatrix object of edit distances
-# ' @param outdir output directory 
-# '
-# ' @export homeology.wrapper
+#' @name homeology.wrapper
+#' @title homeology.wrapper
+#' @param junctions Path to .vcf or bedpe or rds file of junctions or gGraph from which alt edges will be taken
+#' @param width width around junction breakpoint around which to search for homeology
+#' @param pad number of bases of padding around each sequence position (bin) to use when computing homeology, i.e. we then will be comparing 1 + 2*pad -mer sequences for edit distance
+#' @param thresh string distance threshold for calling homeology in a bin
+#' @param stride distance in bases between consecutive bins in which we will be measuring homeology
+#' @param genome Path to .2bit or ffTrack .rds containing genome sequence
+#' @param cores How many cores to use
+#' @param flip if flip = FALSE, homeology search for -/- and +/+ junctions is done between a sequence and its reverse complement
+#' @param bidirectional adding padding on both sides of each breakpoint (TRUE) or only in the direction of the fused side (FALSE)
+#' @param annotate annotate edges in gGraph object and save it in working directory
+#' @param savegMatrix save gMatrix object of edit distances
+#' @param outdir output directory 
+#'
+#' @export homeology.wrapper
 homeology.wrapper <- function(junctions,
                       width = 50,
                       pad = 0,
