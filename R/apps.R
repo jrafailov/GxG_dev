@@ -682,10 +682,7 @@ homeology.event = function (event,
     }, error = function(e) printerr(i))
   }
 
-  #browser()
-  #ifun(i)
   lst = mclapply(1:length(seq1), ifun, mc.cores = mc.cores)
-  browser()
   lst = purrr::transpose(lst)
 
   rawres = merge.data.table(event[, seq := seq_len(.N)], as.data.table(rbindlist(lst[[2]], fill = T)), by = "seq", all.x = TRUE)
