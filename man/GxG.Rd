@@ -2,8 +2,8 @@
 % Please edit documentation in R/GxG.R
 \docType{package}
 \name{GxG}
-\alias{GxG}
 \alias{GxG-package}
+\alias{GxG}
 \title{GxG}
 \description{
 Matrices and pairwise features in a GenomicRanges / data.table framework
